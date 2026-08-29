@@ -1,8 +1,10 @@
 # Talab — طلب
 
+[![CI](https://github.com/ahmed9461/Talab/actions/workflows/ci.yml/badge.svg)](https://github.com/ahmed9461/Talab/actions/workflows/ci.yml)
+
 بوابة عربية لإدارة طلبات العملاء، متابعة حالة الخدمة، واستقبال الإشعارات والمرفقات من مكان واحد.
 
-## الحالة الحالية — v0.6
+## الحالة الحالية — v0.7
 
 Talab أصبح MVP متكامل البنية وليس مجرد واجهة:
 
@@ -14,11 +16,13 @@ Talab أصبح MVP متكامل البنية وليس مجرد واجهة:
 - Argon2 لتوثيق بوابة العميل + AES-GCM منفصل لبيانات الخدمة اللازمة للتنفيذ.
 - حالات PENDING / ACTIVE / SUSPENDED / REJECTED / DISABLED.
 - لوحة عميل تعرض الطلبات والإشعارات والمرفقات وحالة القراءة.
-- Admin API منفصل مع Audit Log.
-- بوت Telegram خاص بالمالك لإدارة الطلبات والتفعيل/الرفض/التعليق وإرسال الإشعارات والمرفقات.
+- Admin API داخلي مع Audit Log، ومحجوب من Nginx العام.
+- بوت Telegram خاص بالمالك لإدارة الطلبات والتفعيل/الرفض/التعليق/التعطيل وإرسال الإشعارات والمرفقات.
+- إشعار تلقائي للمالك عند وصول تسجيل جديد.
 - رفع ملفات خاص وإتاحة المرفقات للعميل بعد التحقق من ملكية الإشعار.
 - Rate limiting أولي للتسجيل وتسجيل الدخول.
-- GitHub Actions لفحص الواجهة والخلفية وPostgreSQL migrations.
+- GitHub Actions لفحص TypeScript/Next.js والخلفية وPostgreSQL migrations، واختبارات متصفح على Desktop وMobile.
+- نسخ احتياطي يومي لـPostgreSQL والوسائط عبر systemd timer.
 - ملفات systemd وNginx وتجهيزات نشر Ubuntu.
 
 ## بنية المشروع
@@ -30,7 +34,8 @@ lib/                    frontend API utilities
 backend/app/            FastAPI application
 backend/migrations/     Alembic migrations
 backend/tests/          backend tests
-deploy/                 systemd + Nginx templates
+e2e/                    Playwright browser tests
+deploy/                 systemd + Nginx + backups
 design-system/talab/    UI source of truth
 docs/                   architecture, progress, deployment
 ```
@@ -81,8 +86,9 @@ python bot.py
 - كلمة مرور بوابة العميل محفوظة كـArgon2 hash.
 - النسخة المطلوبة لتنفيذ الخدمة مشفرة AES-GCM بمفتاح خارج قاعدة البيانات.
 - عرض بيانات الخدمة للإدارة مسجل في `admin_actions`.
-- جلسة العميل في HttpOnly cookie وليست localStorage.
+- جلسة العميل في HttpOnly/SameSite cookie وليست localStorage.
 - المرفقات ليست مجلدًا عامًا؛ يتم تنزيلها عبر endpoint يتحقق من العميل.
+- مسار Admin API محجوب من الـreverse proxy العام ويظل محميًا بمفتاح مستقل كدفاع إضافي.
 - لا يتم commit لملفات `.env` أو الوسائط التشغيلية.
 
 ## UI/UX
@@ -90,7 +96,7 @@ python bot.py
 المصدر البصري الأساسي:
 `design-system/talab/MASTER.md`
 
-التصميم يتبع أولويات UI/UX Pro Max: Accessibility، Touch، Responsive Layout، Feedback، Forms، ثم polish البصري. راجع أيضًا `docs/DESIGN_SYSTEM.md` و`AGENTS.md` قبل تعديل الواجهة.
+التصميم يتبع أولويات UI/UX Pro Max: Accessibility، Touch، Responsive Layout، Feedback، Forms، ثم polish البصري. اختبارات Playwright تفحص تدفق التسجيل ولوحة العميل في مقاسات Desktop وMobile وتتحقق من عدم وجود horizontal overflow.
 
 ## النشر
 
@@ -104,4 +110,4 @@ Nginx
         └── Telegram Bot
 ```
 
-في الإنتاج يجب استخدام HTTPS وتعيين `COOKIE_SECURE=true` وأسرار مستقلة وقوية.
+في الإنتاج يجب استخدام HTTPS وتعيين `COOKIE_SECURE=true` و`EXPOSE_DOCS=false` وأسرار مستقلة وقوية.
