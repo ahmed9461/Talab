@@ -10,3 +10,4 @@ PyJWT==2.10.1
 passlib[argon2]==1.7.4
 httpx==0.28.1
 pytest==8.4.1
+aiogram==3.22.0
