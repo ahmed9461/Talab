@@ -1,5 +1,82 @@
 "use client";
-import {FormEvent,ReactNode,useEffect,useState} from "react";import {ArrowLeft,CheckCircle2,Eye,EyeOff,LockKeyhole,Phone,User,UserRound,Wrench} from "lucide-react";
-const API=process.env.NEXT_PUBLIC_API_URL??"http://localhost:8000/api/v1";type Service={id:string;name:string};
-export default function Home(){const[services,setServices]=useState<Service[]>([]);const[service,setService]=useState("");const[show,setShow]=useState(false);const[done,setDone]=useState(false);const[loading,setLoading]=useState(false);const[error,setError]=useState("");const other=service==="other";useEffect(()=>{fetch(`${API}/services`).then(r=>r.ok?r.json():Promise.reject()).then(setServices).catch(()=>setError("تعذر تحميل الخدمات حاليًا."))},[]);async function submit(e:FormEvent<HTMLFormElement>){e.preventDefault();setLoading(true);setError("");const f=new FormData(e.currentTarget);try{const r=await fetch(`${API}/auth/register`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({full_name:f.get("fullName"),username:f.get("username"),password:f.get("password"),phone:f.get("phone"),service_id:other?null:service,custom_service_text:other?f.get("otherService"):null,accepted_terms:f.get("terms")==="on"})});const b=await r.json();if(!r.ok)throw new Error(typeof b.detail==="string"?b.detail:"تعذر إرسال الطلب");setDone(true)}catch(x){setError(x instanceof Error?x.message:"حدث خطأ غير متوقع")}finally{setLoading(false)}}return <main className="page-shell"><section className="brand-panel"><div className="brand-top"><div className="logo-mark">ط</div><span className="brand-name">Talab</span></div><div className="brand-copy"><span className="eyebrow">بوابة الخدمات</span><h1>اطلب خدمتك.<br/>وتابعها ببساطة.</h1><p>مكان واحد لإرسال بيانات طلبك واستقبال التحديثات والإشعارات المهمة.</p></div><div className="trust-card"><CheckCircle2/><div><strong>طلب واضح من البداية</strong><span>بياناتك وخدمتك تصل مباشرة للمراجعة.</span></div></div></section><section className="form-panel"><div className="mobile-brand"><div className="logo-mark">ط</div><span className="brand-name">Talab</span></div><div className="form-wrap"><div className="form-heading"><span className="status-pill">إنشاء حساب</span><h2>أهلًا بك في طلب</h2><p>أدخل بياناتك وحدد الخدمة التي تريدها.</p></div>{done?<div className="success-state"><div className="success-icon"><CheckCircle2 size={34}/></div><h3>تم استلام طلبك</h3><p>حالة طلبك الآن قيد المراجعة.</p><a className="secondary-button" href="/login">تسجيل الدخول</a></div>:<form className="signup-form" onSubmit={submit}><Field label="الاسم الكامل" icon={<UserRound/>}><input name="fullName" autoComplete="name" required/></Field><Field label="اسم المستخدم" icon={<User/>}><input name="username" autoComplete="username" required/></Field><Field label="كلمة المرور" icon={<LockKeyhole/>}><div className="password-wrap"><input name="password" type={show?"text":"password"} minLength={6} required/><button className="icon-button" type="button" onClick={()=>setShow(!show)} aria-label="إظهار أو إخفاء كلمة المرور">{show?<EyeOff/>:<Eye/>}</button></div></Field><Field label="رقم الجوال" icon={<Phone/>}><input name="phone" type="tel" required/></Field><Field label="نوع الخدمة" icon={<Wrench/>}><select value={service} onChange={e=>setService(e.target.value)} required><option value="" disabled>اختر الخدمة</option>{services.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}<option value="other">أخرى</option></select></Field>{other&&<div className="other-service"><label htmlFor="otherService">صف لنا الخدمة التي تريدها</label><textarea id="otherService" name="otherService" rows={4} required/></div>}<label className="terms-row"><input type="checkbox" name="terms" required/><span>أوافق على <a href="#terms">شروط الخدمة</a> وسياسة الاستخدام.</span></label>{error&&<p role="alert">{error}</p>}<button className="primary-button" disabled={loading}><span>{loading?"جارٍ الإرسال...":"متابعة"}</span><ArrowLeft/></button></form>}<p className="login-link">لديك حساب بالفعل؟ <a href="/login">تسجيل دخول</a></p></div></section></main>}
-function Field({label,icon,children}:{label:string;icon:ReactNode;children:ReactNode}){return <label className="field"><span className="field-label">{label}</span><div className="input-shell"><span className="field-icon">{icon}</span>{children}</div></label>}
+
+import { FormEvent, ReactNode, useEffect, useState } from "react";
+import { ArrowLeft, BadgeCheck, Check, Eye, EyeOff, LockKeyhole, Phone, ShieldCheck, Sparkles, UserRound, Wrench } from "lucide-react";
+import { BrandLogo } from "@/components/brand-logo";
+import { apiFetch } from "@/lib/api";
+
+type Service = { id: string; name: string };
+
+export default function RegisterPage() {
+  const [services, setServices] = useState<Service[]>([]);
+  const [service, setService] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [done, setDone] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [servicesLoading, setServicesLoading] = useState(true);
+  const [error, setError] = useState("");
+  const other = service === "other";
+
+  useEffect(() => {
+    apiFetch<Service[]>("/services")
+      .then(setServices)
+      .catch((err) => setError(err.message))
+      .finally(() => setServicesLoading(false));
+  }, []);
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault(); setLoading(true); setError("");
+    const form = new FormData(event.currentTarget);
+    try {
+      await apiFetch("/auth/register", { method: "POST", body: JSON.stringify({
+        full_name: form.get("fullName"), username: form.get("username"), password: form.get("password"), phone: form.get("phone"),
+        service_id: other ? null : service, custom_service_text: other ? form.get("otherService") : null, accepted_terms: form.get("terms") === "on",
+      }) });
+      setDone(true); window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch (err) { setError(err instanceof Error ? err.message : "حدث خطأ غير متوقع"); }
+    finally { setLoading(false); }
+  }
+
+  return <main className="auth-layout">
+    <aside className="auth-story" aria-label="تعريف بمنصة طلب">
+      <div className="story-glow story-glow-one"/><div className="story-glow story-glow-two"/>
+      <BrandLogo />
+      <div className="story-copy">
+        <span className="overline"><Sparkles size={16}/> بوابة خدمات أبسط</span>
+        <h1>طلبك يبدأ هنا،<br/><em>ومتابعته أسهل.</em></h1>
+        <p>أرسل بيانات الخدمة مرة واحدة، وتابع حالتها واستقبل كل التحديثات المهمة من حسابك.</p>
+        <div className="story-points">
+          <StoryPoint icon={<BadgeCheck/>} title="حالة واضحة" text="تعرف أين وصل طلبك بدون رسائل متفرقة."/>
+          <StoryPoint icon={<ShieldCheck/>} title="بيانات محمية" text="نستخدم ضوابط أمنية مخصصة لحماية بيانات الدخول."/>
+        </div>
+      </div>
+      <p className="story-foot">Talab · بوابة العملاء والخدمات</p>
+    </aside>
+
+    <section className="auth-workspace">
+      <header className="mobile-top"><BrandLogo /><a className="text-link" href="/login">تسجيل الدخول</a></header>
+      <div className="form-card">
+        {!done ? <>
+          <div className="form-intro"><span className="step-kicker">الخطوة 1 من 1</span><h2>إنشاء طلب جديد</h2><p>أدخل بياناتك كما تريد استخدامها في الخدمة، ثم اختر نوع الطلب.</p></div>
+          <form className="professional-form" onSubmit={submit} noValidate>
+            <div className="field-grid two"><Field label="الاسم الكامل" icon={<UserRound/>}><input name="fullName" autoComplete="name" placeholder="مثال: أحمد محمد" minLength={2} required /></Field><Field label="رقم الجوال" icon={<Phone/>}><input name="phone" type="tel" inputMode="tel" autoComplete="tel" placeholder="مثال: 77xxxxxxx" minLength={7} required /></Field></div>
+            <Field label="اسم المستخدم" hint="سيُستخدم أيضًا لمتابعة حسابك" icon={<UserRound/>}><input name="username" dir="ltr" autoComplete="username" placeholder="your.username" pattern="[A-Za-z0-9_.-]+" minLength={3} required /></Field>
+            <Field label="كلمة المرور" hint="6 أحرف على الأقل" icon={<LockKeyhole/>}><div className="password-control"><input name="password" dir="ltr" type={showPassword ? "text" : "password"} autoComplete="new-password" minLength={6} placeholder="••••••••" required/><button className="field-action" type="button" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"}>{showPassword ? <EyeOff/> : <Eye/>}</button></div></Field>
+            <Field label="نوع الخدمة" icon={<Wrench/>}><select value={service} onChange={(e) => setService(e.target.value)} disabled={servicesLoading} required><option value="" disabled>{servicesLoading ? "جارٍ تحميل الخدمات..." : "اختر الخدمة المطلوبة"}</option>{services.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}<option value="other">أخرى — اكتب طلبك</option></select></Field>
+            {other && <div className="reveal-field"><label htmlFor="otherService">صف الخدمة المطلوبة</label><textarea id="otherService" name="otherService" rows={4} maxLength={1500} placeholder="اكتب وصفًا مختصرًا يساعدنا على فهم المطلوب..." required/></div>}
+            <label className="consent-row"><input type="checkbox" name="terms" required/><span className="check-ui"><Check size={15}/></span><span>قرأت وأوافق على <a href="/terms" target="_blank">شروط الخدمة وسياسة الاستخدام</a>.</span></label>
+            {error && <div className="form-alert" role="alert">{error}</div>}
+            <button className="primary-cta" type="submit" disabled={loading || servicesLoading}><span>{loading ? "جارٍ إرسال طلبك..." : "إرسال الطلب"}</span><ArrowLeft size={19}/></button>
+            <p className="form-switch">لديك حساب بالفعل؟ <a href="/login">تسجيل الدخول</a></p>
+          </form>
+        </> : <div className="success-screen" role="status"><div className="success-mark"><Check size={34}/></div><span className="step-kicker">تم بنجاح</span><h2>وصلنا طلبك</h2><p>تم إنشاء حسابك وحفظ طلبك بحالة <strong>قيد المراجعة</strong>. سجل دخولك في أي وقت لمتابعة الحالة والإشعارات.</p><a className="primary-cta link-button" href="/login">الانتقال لتسجيل الدخول <ArrowLeft size={19}/></a><div className="success-note"><ShieldCheck size={18}/><span>لن تحتاج لإرسال بيانات طلبك مرة أخرى عبر المحادثات.</span></div></div>}
+      </div>
+      <footer className="auth-footer"><span>© طلب</span><a href="/terms">الشروط والخصوصية</a></footer>
+    </section>
+  </main>;
+}
+
+function Field({ label, hint, icon, children }: { label: string; hint?: string; icon: ReactNode; children: ReactNode }) {
+  return <label className="field"><span className="field-head"><b>{label}</b>{hint && <small>{hint}</small>}</span><span className="input-frame"><span className="input-icon" aria-hidden="true">{icon}</span>{children}</span></label>;
+}
+function StoryPoint({ icon, title, text }: { icon: ReactNode; title: string; text: string }) { return <div className="story-point"><span>{icon}</span><div><b>{title}</b><small>{text}</small></div></div>; }
