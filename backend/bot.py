@@ -32,9 +32,15 @@ async def api(method: str, path: str, **kwargs):
 def request_buttons(request_id: str, customer_id: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="✅ تفعيل", callback_data=f"st:ACTIVE:{request_id}"), InlineKeyboardButton(text="❌ رفض", callback_data=f"st:REJECTED:{request_id}")],
-        [InlineKeyboardButton(text="⏸ تعليق", callback_data=f"st:SUSPENDED:{request_id}"), InlineKeyboardButton(text="🔐 بيانات الدخول", callback_data=f"cred:{request_id}")],
-        [InlineKeyboardButton(text="🔔 إرسال إخطار", callback_data=f"notify:{customer_id}")],
+        [InlineKeyboardButton(text="⏸ تعليق", callback_data=f"st:SUSPENDED:{request_id}"), InlineKeyboardButton(text="🚫 تعطيل", callback_data=f"st:DISABLED:{request_id}")],
+        [InlineKeyboardButton(text="🔐 بيانات الدخول", callback_data=f"cred:{request_id}"), InlineKeyboardButton(text="🔔 إرسال إخطار", callback_data=f"notify:{customer_id}")],
     ])
+
+
+def service_button(item: dict) -> InlineKeyboardMarkup:
+    desired = "false" if item["is_active"] else "true"
+    text = "⚪️ تعطيل الخدمة" if item["is_active"] else "🟢 تفعيل الخدمة"
+    return InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text=text, callback_data=f"svc:{item['id']}:{desired}")]])
 
 
 @dp.message(CommandStart())
@@ -90,20 +96,20 @@ async def cancel(message: Message, state: FSMContext):
 
 
 async def telegram_attachment(message: Message, bot: Bot) -> dict[str, str] | None:
-    file_id = None; filename = None; mime = None
+    file_id = None; filename = None; mime = None; size = 0
     if message.photo:
-        file_id = message.photo[-1].file_id; filename = "photo.jpg"; mime = "image/jpeg"
+        media = message.photo[-1]; file_id = media.file_id; size = media.file_size or 0; filename = "photo.jpg"; mime = "image/jpeg"
     elif message.video:
-        file_id = message.video.file_id; filename = message.video.file_name or "video.mp4"; mime = message.video.mime_type or "video/mp4"
+        media = message.video; file_id = media.file_id; size = media.file_size or 0; filename = media.file_name or "video.mp4"; mime = media.mime_type or "video/mp4"
     elif message.document:
-        file_id = message.document.file_id; filename = message.document.file_name or "file"; mime = message.document.mime_type or "application/octet-stream"
+        media = message.document; file_id = media.file_id; size = media.file_size or 0; filename = media.file_name or "file"; mime = media.mime_type or "application/octet-stream"
     if not file_id: return None
+    if size and size > settings.max_upload_bytes: raise ValueError("file too large")
     info = await bot.get_file(file_id)
     buffer = BytesIO()
     await bot.download_file(info.file_path, destination=buffer)
     response = await api("POST", "/media", files={"file": (filename, buffer.getvalue(), mime)})
-    if not response.is_success:
-        raise RuntimeError("media upload failed")
+    if not response.is_success: raise RuntimeError("media upload failed")
     return response.json()
 
 
@@ -120,7 +126,7 @@ async def send_notification(message: Message, state: FSMContext, bot: Bot):
         if media: payload.update(media)
         response = await api("POST", f"/customers/{data['customer_id']}/notifications", json=payload)
     except Exception:
-        return await message.answer("تعذر رفع المرفق أو إرسال الإشعار.")
+        return await message.answer("تعذر رفع المرفق أو إرسال الإشعار. تحقق من نوع وحجم الملف.")
     if response.is_success:
         await state.clear(); await message.answer("✅ تم إرسال الإشعار.")
     else:
@@ -132,8 +138,20 @@ async def services(message: Message):
     if not allowed(message.from_user.id): return
     response = await api("GET", "/services")
     if not response.is_success: return await message.answer("تعذر جلب الخدمات.")
-    lines = [f"{'🟢' if item['is_active'] else '⚪️'} {item['name']}" for item in response.json()]
-    await message.answer("الخدمات:\n" + "\n".join(lines))
+    items = response.json()
+    if not items: return await message.answer("لا توجد خدمات.")
+    for item in items:
+        await message.answer(f"{'🟢' if item['is_active'] else '⚪️'} {item['name']}", reply_markup=service_button(item))
+
+
+@dp.callback_query(F.data.startswith("svc:"))
+async def toggle_service(callback: CallbackQuery):
+    if not allowed(callback.from_user.id): return
+    _, service_id, desired = callback.data.split(":", 2)
+    response = await api("PATCH", f"/services/{service_id}", json={"is_active": desired == "true"})
+    await callback.answer("تم تحديث الخدمة" if response.is_success else "تعذر تحديث الخدمة", show_alert=not response.is_success)
+    if response.is_success:
+        await callback.message.edit_reply_markup(reply_markup=service_button(response.json()))
 
 
 @dp.message(Command("addservice"))

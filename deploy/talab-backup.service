@@ -1,0 +1,16 @@
+[Unit]
+Description=Talab database and media backup
+After=postgresql.service
+
+[Service]
+Type=oneshot
+User=talab
+Group=talab
+WorkingDirectory=/opt/Talab
+EnvironmentFile=/opt/Talab/backend/.env
+ExecStart=/opt/Talab/deploy/backup-talab.sh
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+PrivateTmp=true
+NoNewPrivileges=true

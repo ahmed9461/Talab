@@ -7,6 +7,7 @@ Target: Ubuntu 24.04, `/opt/Talab`, PostgreSQL, systemd and Nginx.
 - `api.example.com` → FastAPI on `127.0.0.1:8000`
 - PostgreSQL local/private
 - Telegram bot talks to the local admin API only
+- `/api/v1/admin` is blocked at Nginx and is not publicly reachable
 
 Use two subdomains under the same parent domain so the secure SameSite session cookie works predictably.
 
@@ -21,6 +22,7 @@ Backend `.env` must use strong independent random secrets and at minimum:
 - `FRONTEND_ORIGIN=https://portal.example.com`
 - `PUBLIC_BASE_URL=https://api.example.com`
 - `COOKIE_SECURE=true`
+- `EXPOSE_DOCS=false`
 
 Frontend `.env.production`:
 - `NEXT_PUBLIC_API_URL=https://api.example.com/api/v1`
@@ -37,11 +39,23 @@ Never copy values from `.env.example` into production unchanged.
 7. Add HTTPS certificates, then keep `COOKIE_SECURE=true`.
 8. Verify `/health`, registration, login, status update, notification and attachment download end-to-end.
 
+## Registration notifications
+When Telegram credentials are configured, every successful new registration schedules a Telegram notification to the owner with request actions. A Telegram outage does not roll back or fail customer registration.
+
 ## Uploads and backups
-`MEDIA_ROOT` stores notification media on disk. Back it up together with PostgreSQL. Attachments are downloaded through an authenticated customer endpoint rather than a public static directory.
+`MEDIA_ROOT` stores notification media on disk. Attachments are downloaded through an authenticated customer endpoint rather than a public static directory.
+
+A daily systemd backup is included:
+- `deploy/talab-backup.service`
+- `deploy/talab-backup.timer`
+- `deploy/backup-talab.sh`
+
+It backs up PostgreSQL plus the media directory into `/opt/Talab/backups` and removes files older than `BACKUP_RETENTION_DAYS` (default 14). Enable it with `systemctl enable --now talab-backup.timer` after making the script executable.
 
 ## Security notes
-- Admin API is not exposed to the browser and requires `X-Admin-Key`.
+- Public Nginx never proxies `/api/v1/admin`; the Telegram bot uses localhost.
+- Admin API still requires `X-Admin-Key` as defense in depth.
 - Credential reveal is audit-logged.
-- Login and registration have lightweight per-process rate limits. For multiple API workers, replace this with Redis-backed throttling.
+- Login and registration have per-process throttling. For multiple API workers, replace it with Redis-backed throttling.
+- API docs should be disabled in production with `EXPOSE_DOCS=false`.
 - Run only one bot polling process.

@@ -5,7 +5,13 @@ from app.config import get_settings
 from app.routers import admin, auth, customer, services
 
 settings = get_settings()
-app = FastAPI(title="Talab API", version="0.5.0", docs_url="/docs", redoc_url=None)
+app = FastAPI(
+    title="Talab API",
+    version="0.7.0",
+    docs_url="/docs" if settings.expose_docs else None,
+    openapi_url="/openapi.json" if settings.expose_docs else None,
+    redoc_url=None,
+)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[settings.frontend_origin],
@@ -21,4 +27,4 @@ app.include_router(admin.router, prefix="/api/v1/admin", tags=["admin"])
 
 @app.get("/health", tags=["system"])
 async def health() -> dict[str, str]:
-    return {"status": "ok", "service": "talab-api", "version": "0.5.0"}
+    return {"status": "ok", "service": "talab-api", "version": "0.7.0"}

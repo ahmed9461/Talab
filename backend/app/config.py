@@ -14,8 +14,10 @@ class Settings(BaseSettings):
     session_cookie_name: str = "talab_session"
     session_days: int = 7
     cookie_secure: bool = False
+    expose_docs: bool = True
     media_root: str = "media"
     max_upload_bytes: int = 50_000_000
+    backup_retention_days: int = 14
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
