@@ -1,22 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-
-from app.routers import auth, services
-
-app = FastAPI(title="Talab API", version="0.2.0")
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
-app.include_router(services.router, prefix="/api/v1/services", tags=["services"])
-
-
+from app.config import get_settings
+from app.routers import auth,customer,services
+settings=get_settings(); app=FastAPI(title="Talab API",version="0.3.0")
+app.add_middleware(CORSMiddleware,allow_origins=[settings.frontend_origin],allow_credentials=True,allow_methods=["*"],allow_headers=["*"])
+app.include_router(auth.router,prefix="/api/v1/auth",tags=["auth"]); app.include_router(services.router,prefix="/api/v1/services",tags=["services"]); app.include_router(customer.router,prefix="/api/v1/customer",tags=["customer"])
 @app.get("/health")
-async def health() -> dict[str, str]:
-    return {"status": "ok", "service": "talab-api"}
+async def health(): return {"status":"ok","service":"talab-api"}
