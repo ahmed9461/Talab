@@ -1,7 +1,22 @@
 node_modules/
 .next/
 out/
-.env
-.env.local
 *.log
 .DS_Store
+
+# Environment secrets
+.env
+.env.local
+.env.production
+backend/.env
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+backend/.venv/
+.venv/
+
+# Runtime media / backups
+backend/media/
+backups/
