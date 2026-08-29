@@ -1,40 +1,37 @@
 # Talab Progress
 
-## Current version: v0.5.0
+## Current version: v0.6.0
 
 ### Customer experience
-- Professional RTL, mobile-first registration experience using the Talab master design system.
-- Login using an HttpOnly session cookie instead of browser localStorage.
-- Customer dashboard with account status, requests, unread notification count, attachments, and read state.
-- Dedicated terms/privacy page and custom 404 page.
-- Visible loading, empty, success, error and focus states.
+- Premium RTL mobile-first registration, login and customer dashboard.
+- HttpOnly/SameSite session cookie; no browser localStorage token.
+- Status badges use icon + text and accessible focus/touch states.
+- Requests, unread notifications, attachments, loading/error/empty/success states.
+- Dedicated terms/privacy and 404 pages.
 
-### Backend
-- FastAPI + async PostgreSQL + Alembic.
-- Registration with terms acceptance and PENDING request.
-- Argon2 portal password hash plus AES-GCM reversible service credential encryption.
-- JWT session stored in an HttpOnly/SameSite cookie.
-- Customer profile, request and notification APIs.
-- Admin API protected by a separate admin key.
-- Status changes, notifications, attachment metadata and admin audit log.
-- Audited admin-only credential reveal.
-- Service create/update/disable API.
+### Backend and security
+- FastAPI + async PostgreSQL + Alembic migration verification.
+- Argon2 portal password hash + AES-GCM service credential encryption.
+- Audited admin credential reveal.
+- Login/register rate limiting.
+- Private customer-authorized attachment download.
+- Validated image/video/document uploads up to configured size.
+- Admin status, notification and service-management APIs with audit trail.
 
 ### Telegram administration
-- Owner-only bot.
-- Request list with activate/reject/suspend actions.
-- Ephemeral credential reveal through callback alert.
-- Notification composition flow.
-- Service listing and creation commands.
+- Owner-only request management.
+- Activate/reject/suspend actions.
+- Ephemeral credential reveal.
+- Text notifications plus image/video/document upload directly from Telegram.
+- Service listing and creation.
 
-### Quality
-- Persistent design system at `design-system/talab/MASTER.md` based on UI/UX Pro Max priority rules.
-- CI validates TypeScript/Next.js build, Python compilation/tests and PostgreSQL migration up/down/up.
-- Local PostgreSQL Docker Compose configuration.
+### Product quality
+- `design-system/talab/MASTER.md` is the visual source of truth using UI/UX Pro Max priorities.
+- GitHub Actions checks TypeScript, Next.js build, Python compilation/tests and PostgreSQL migrations.
+- systemd/Nginx deployment templates and production guide included.
 
-## Remaining before public production
-- Configure real deployment secrets, domain, HTTPS and `COOKIE_SECURE=true`.
-- Add binary media storage/upload rather than URL metadata only.
-- Add request throttling/login rate limits and optional CSRF token if frontend/API are deployed cross-site.
-- Add Telegram media upload flow and richer service management buttons.
-- Run end-to-end browser tests against the deployed environment.
+## Remaining before public launch
+- Configure real domain, server secrets and Telegram credentials.
+- Run full deployed browser E2E flow and visual review on real phones/desktop.
+- Add Redis-backed rate limiting only if running multiple API workers.
+- Add database/media backup automation and retention policy.

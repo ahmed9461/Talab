@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -9,6 +9,7 @@ from app.dependencies import require_admin
 from app.models import AdminAction, Customer, Notification, NotificationAttachment, RequestStatus, Service, ServiceCredential, ServiceRequest
 from app.schemas import AdminRequestOut, AdminServiceOut, CredentialOut, NotificationCreate, ServiceCreate, ServiceUpdate, StatusUpdate
 from app.security import decrypt_service_password
+from app.uploads import save_upload
 
 router = APIRouter(dependencies=[Depends(require_admin)])
 STATUS_LABELS = {"PENDING": "قيد المراجعة", "ACTIVE": "تم التفعيل", "SUSPENDED": "موقوف مؤقتًا", "REJECTED": "مرفوض", "DISABLED": "معطّل"}
@@ -16,13 +17,8 @@ STATUS_LABELS = {"PENDING": "قيد المراجعة", "ACTIVE": "تم التف�
 
 @router.get("/requests", response_model=list[AdminRequestOut])
 async def list_requests(db: AsyncSession = Depends(get_db)) -> list[AdminRequestOut]:
-    rows = (await db.execute(
-        select(ServiceRequest, Customer, Service.name)
-        .join(Customer, Customer.id == ServiceRequest.customer_id)
-        .outerjoin(Service, Service.id == ServiceRequest.service_id)
-        .order_by(ServiceRequest.created_at.desc())
-    )).all()
-    return [AdminRequestOut(id=request.id, customer_id=customer.id, full_name=customer.full_name, username=customer.username, phone=customer.phone, service_name=name, custom_service_text=request.custom_service_text, status=request.status.value, created_at=request.created_at) for request, customer, name in rows]
+    rows = (await db.execute(select(ServiceRequest, Customer, Service.name).join(Customer, Customer.id == ServiceRequest.customer_id).outerjoin(Service, Service.id == ServiceRequest.service_id).order_by(ServiceRequest.created_at.desc()))).all()
+    return [AdminRequestOut(id=item.id, customer_id=customer.id, full_name=customer.full_name, username=customer.username, phone=customer.phone, service_name=name, custom_service_text=item.custom_service_text, status=item.status.value, created_at=item.created_at) for item, customer, name in rows]
 
 
 @router.get("/requests/{request_id}/credential", response_model=CredentialOut)
@@ -41,17 +37,23 @@ async def update_status(request_id: UUID, payload: StatusUpdate, db: AsyncSessio
         new_status = RequestStatus(payload.status)
     except ValueError as exc:
         raise HTTPException(400, "حالة غير صالحة") from exc
-    request = await db.get(ServiceRequest, request_id)
-    if not request:
+    service_request = await db.get(ServiceRequest, request_id)
+    if not service_request:
         raise HTTPException(404, "الطلب غير موجود")
-    customer = await db.get(Customer, request.customer_id)
-    request.status = new_status
+    customer = await db.get(Customer, service_request.customer_id)
+    service_request.status = new_status
     customer.status = new_status
     label = STATUS_LABELS[new_status.value]
-    db.add(AdminAction(action="request_status_changed", target_id=str(request.id), details=new_status.value))
+    db.add(AdminAction(action="request_status_changed", target_id=str(service_request.id), details=new_status.value))
     db.add(Notification(customer_id=customer.id, title="تحديث حالة طلبك", body=f"تم تحديث حالة طلبك إلى: {label}."))
     await db.commit()
     return {"ok": True, "status": new_status.value}
+
+
+@router.post("/media", status_code=status.HTTP_201_CREATED)
+async def upload_media(file: UploadFile = File(...)) -> dict[str, str]:
+    filename, kind, original_name = await save_upload(file)
+    return {"file_url": filename, "kind": kind, "file_name": original_name}
 
 
 @router.post("/customers/{customer_id}/notifications", status_code=status.HTTP_201_CREATED)
@@ -80,7 +82,8 @@ async def create_service(payload: ServiceCreate, db: AsyncSession = Depends(get_
         raise HTTPException(409, "الخدمة موجودة بالفعل")
     item = Service(name=name, sort_order=payload.sort_order, is_active=True)
     db.add(item)
-    db.add(AdminAction(action="service_created", target_id="pending", details=name))
+    await db.flush()
+    db.add(AdminAction(action="service_created", target_id=str(item.id), details=name))
     await db.commit()
     await db.refresh(item)
     return item

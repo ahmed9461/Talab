@@ -1,7 +1,7 @@
 import secrets
 import uuid
 
-from fastapi import Cookie, Depends, Header, HTTPException
+from fastapi import Depends, Header, HTTPException, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -14,11 +14,12 @@ bearer = HTTPBearer(auto_error=False)
 
 
 async def current_customer(
+    request: Request,
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer),
-    session_cookie: str | None = Cookie(default=None, alias="talab_session"),
     db: AsyncSession = Depends(get_db),
 ):
-    token = credentials.credentials if credentials else session_cookie
+    settings = get_settings()
+    token = credentials.credentials if credentials else request.cookies.get(settings.session_cookie_name)
     if not token:
         raise HTTPException(401, "تسجيل الدخول مطلوب")
     try:

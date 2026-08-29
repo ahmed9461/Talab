@@ -13,7 +13,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
       - run: npm install --no-audit --no-fund
       - run: npm run typecheck
       - run: npm run build
@@ -29,8 +28,7 @@ jobs:
           POSTGRES_DB: talab
           POSTGRES_USER: talab
           POSTGRES_PASSWORD: talab
-        ports:
-          - 5432:5432
+        ports: ["5432:5432"]
         options: >-
           --health-cmd "pg_isready -U talab -d talab"
           --health-interval 5s
@@ -44,6 +42,7 @@ jobs:
       CREDENTIAL_ENCRYPTION_KEY: ci-encryption-secret
       JWT_SECRET: ci-jwt-secret
       ADMIN_API_KEY: ci-admin-secret
+      PUBLIC_BASE_URL: http://localhost:8000
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

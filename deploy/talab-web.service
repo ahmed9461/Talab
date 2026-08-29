@@ -1,0 +1,18 @@
+[Unit]
+Description=Talab Next.js Web
+After=network.target
+
+[Service]
+User=talab
+Group=talab
+WorkingDirectory=/opt/Talab
+Environment=NODE_ENV=production
+EnvironmentFile=/opt/Talab/.env.production
+ExecStart=/usr/bin/npm start -- --hostname 127.0.0.1 --port 3000
+Restart=always
+RestartSec=3
+PrivateTmp=true
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

@@ -1,9 +1,12 @@
+from pathlib import Path
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import FileResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import get_settings
 from app.database import get_db
 from app.dependencies import current_customer
 from app.models import Customer, Notification, NotificationAttachment, Service, ServiceRequest
@@ -19,35 +22,42 @@ async def me(customer: Customer = Depends(current_customer)) -> MeOut:
 
 @router.get("/requests", response_model=list[RequestOut])
 async def requests(customer: Customer = Depends(current_customer), db: AsyncSession = Depends(get_db)) -> list[RequestOut]:
-    rows = (await db.execute(
-        select(ServiceRequest, Service.name)
-        .outerjoin(Service, Service.id == ServiceRequest.service_id)
-        .where(ServiceRequest.customer_id == customer.id)
-        .order_by(ServiceRequest.created_at.desc())
-    )).all()
-    return [RequestOut(id=request.id, service_name=name, custom_service_text=request.custom_service_text, status=request.status.value, created_at=request.created_at) for request, name in rows]
+    rows = (await db.execute(select(ServiceRequest, Service.name).outerjoin(Service, Service.id == ServiceRequest.service_id).where(ServiceRequest.customer_id == customer.id).order_by(ServiceRequest.created_at.desc()))).all()
+    return [RequestOut(id=item.id, service_name=name, custom_service_text=item.custom_service_text, status=item.status.value, created_at=item.created_at) for item, name in rows]
 
 
 @router.get("/notifications", response_model=list[NotificationOut])
 async def notifications(customer: Customer = Depends(current_customer), db: AsyncSession = Depends(get_db)) -> list[NotificationOut]:
-    notes = list((await db.scalars(
-        select(Notification).where(Notification.customer_id == customer.id).order_by(Notification.created_at.desc())
-    )).all())
+    settings = get_settings()
+    notes = list((await db.scalars(select(Notification).where(Notification.customer_id == customer.id).order_by(Notification.created_at.desc()))).all())
     if not notes:
         return []
-
-    note_ids = [note.id for note in notes]
-    attachments = list((await db.scalars(
-        select(NotificationAttachment).where(NotificationAttachment.notification_id.in_(note_ids))
-    )).all())
+    attachments = list((await db.scalars(select(NotificationAttachment).where(NotificationAttachment.notification_id.in_([note.id for note in notes])))).all())
     grouped: dict[UUID, list[AttachmentOut]] = {}
     for item in attachments:
-        grouped.setdefault(item.notification_id, []).append(AttachmentOut(id=item.id, kind=item.kind, file_url=item.file_url, file_name=item.file_name))
+        grouped.setdefault(item.notification_id, []).append(AttachmentOut(
+            id=item.id, kind=item.kind,
+            file_url=f"{settings.public_base_url}/api/v1/customer/attachments/{item.id}",
+            file_name=item.file_name,
+        ))
+    return [NotificationOut(id=note.id, title=note.title, body=note.body, is_read=note.is_read, created_at=note.created_at, attachments=grouped.get(note.id, [])) for note in notes]
 
-    return [NotificationOut(
-        id=note.id, title=note.title, body=note.body, is_read=note.is_read, created_at=note.created_at,
-        attachments=grouped.get(note.id, []),
-    ) for note in notes]
+
+@router.get("/attachments/{attachment_id}")
+async def download_attachment(attachment_id: UUID, customer: Customer = Depends(current_customer), db: AsyncSession = Depends(get_db)):
+    row = (await db.execute(
+        select(NotificationAttachment, Notification.customer_id)
+        .join(Notification, Notification.id == NotificationAttachment.notification_id)
+        .where(NotificationAttachment.id == attachment_id)
+    )).first()
+    if not row or row[1] != customer.id:
+        raise HTTPException(404, "المرفق غير موجود")
+    attachment = row[0]
+    filename = Path(attachment.file_url).name
+    path = Path(get_settings().media_root) / filename
+    if not path.is_file():
+        raise HTTPException(404, "ملف المرفق غير متوفر")
+    return FileResponse(path, filename=attachment.file_name or filename)
 
 
 @router.post("/notifications/{notification_id}/read")

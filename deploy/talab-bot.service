@@ -1,0 +1,18 @@
+[Unit]
+Description=Talab Telegram Admin Bot
+After=network.target talab-api.service
+Requires=talab-api.service
+
+[Service]
+User=talab
+Group=talab
+WorkingDirectory=/opt/Talab/backend
+EnvironmentFile=/opt/Talab/backend/.env
+ExecStart=/opt/Talab/backend/.venv/bin/python bot.py
+Restart=always
+RestartSec=5
+PrivateTmp=true
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target
