@@ -31,11 +31,13 @@
 ### Product quality and operations
 - `design-system/talab/MASTER.md` is the visual source of truth using UI/UX Pro Max priorities.
 - GitHub Actions checks TypeScript, Next.js build, Python compilation/tests and PostgreSQL migrations.
+- Browser smoke suite runs registration/dashboard at desktop and mobile widths and checks horizontal overflow.
+- CI retains temporary screenshots/HTML Playwright report for visual inspection.
 - Public Nginx blocks the admin API path.
 - systemd/Nginx deployment templates and production guide included.
 - Daily PostgreSQL/media backup timer with configurable retention.
 
 ## Remaining before public launch
 - Configure the actual domain, production server secrets and Telegram credentials.
-- Deploy and perform a real-browser end-to-end visual review on phone and desktop.
+- Deploy and perform a final real-environment E2E review.
 - Use Redis-backed rate limiting only if running multiple API workers.
