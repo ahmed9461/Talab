@@ -1,22 +1,67 @@
 """initial Talab schema"""
+import uuid
+
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
-revision="0001_initial"; down_revision=None; branch_labels=None; depends_on=None
-status=sa.Enum("PENDING","ACTIVE","SUSPENDED","REJECTED","DISABLED",name="requeststatus")
-def upgrade():
-    status.create(op.get_bind(),checkfirst=True)
-    op.create_table("customers",sa.Column("id",postgresql.UUID(as_uuid=True),primary_key=True),sa.Column("full_name",sa.String(160),nullable=False),sa.Column("username",sa.String(80),nullable=False,unique=True),sa.Column("phone",sa.String(40),nullable=False),sa.Column("portal_password_hash",sa.Text(),nullable=False),sa.Column("status",status,nullable=False,server_default="PENDING"),sa.Column("created_at",sa.DateTime(timezone=True),server_default=sa.func.now()))
-    op.create_table("services",sa.Column("id",postgresql.UUID(as_uuid=True),primary_key=True),sa.Column("name",sa.String(140),nullable=False,unique=True),sa.Column("is_active",sa.Boolean(),nullable=False,server_default=sa.true()),sa.Column("sort_order",sa.Integer(),nullable=False,server_default="0"))
-    op.create_table("service_requests",sa.Column("id",postgresql.UUID(as_uuid=True),primary_key=True),sa.Column("customer_id",postgresql.UUID(as_uuid=True),sa.ForeignKey("customers.id",ondelete="CASCADE"),nullable=False),sa.Column("service_id",postgresql.UUID(as_uuid=True),sa.ForeignKey("services.id",ondelete="SET NULL")),sa.Column("custom_service_text",sa.Text()),sa.Column("status",status,nullable=False,server_default="PENDING"),sa.Column("created_at",sa.DateTime(timezone=True),server_default=sa.func.now()))
-    op.create_table("service_credentials",sa.Column("id",postgresql.UUID(as_uuid=True),primary_key=True),sa.Column("request_id",postgresql.UUID(as_uuid=True),sa.ForeignKey("service_requests.id",ondelete="CASCADE"),nullable=False,unique=True),sa.Column("service_username",sa.String(160),nullable=False),sa.Column("encrypted_password",sa.Text(),nullable=False))
-    op.create_table("terms_acceptances",sa.Column("id",postgresql.UUID(as_uuid=True),primary_key=True),sa.Column("customer_id",postgresql.UUID(as_uuid=True),sa.ForeignKey("customers.id",ondelete="CASCADE"),nullable=False),sa.Column("terms_version",sa.String(40),nullable=False),sa.Column("accepted_at",sa.DateTime(timezone=True),server_default=sa.func.now()))
-    op.create_table("notifications",sa.Column("id",postgresql.UUID(as_uuid=True),primary_key=True),sa.Column("customer_id",postgresql.UUID(as_uuid=True),sa.ForeignKey("customers.id",ondelete="CASCADE"),nullable=False),sa.Column("title",sa.String(180),nullable=False),sa.Column("body",sa.Text(),nullable=False),sa.Column("is_read",sa.Boolean(),nullable=False,server_default=sa.false()),sa.Column("created_at",sa.DateTime(timezone=True),server_default=sa.func.now()))
-    op.create_table("notification_attachments",sa.Column("id",postgresql.UUID(as_uuid=True),primary_key=True),sa.Column("notification_id",postgresql.UUID(as_uuid=True),sa.ForeignKey("notifications.id",ondelete="CASCADE"),nullable=False),sa.Column("kind",sa.String(30),nullable=False),sa.Column("file_url",sa.Text(),nullable=False),sa.Column("file_name",sa.String(255)))
-    op.create_table("admin_actions",sa.Column("id",postgresql.UUID(as_uuid=True),primary_key=True),sa.Column("action",sa.String(80),nullable=False),sa.Column("target_id",sa.String(80),nullable=False),sa.Column("details",sa.Text()),sa.Column("created_at",sa.DateTime(timezone=True),server_default=sa.func.now()))
-    for table,cols in [("customers",["username","phone","status"]),("service_requests",["customer_id","status"]),("notifications",["customer_id","is_read"])]:
-        for col in cols: op.create_index(f"ix_{table}_{col}",table,[col])
-    op.bulk_insert(sa.table("services",sa.column("id",postgresql.UUID()),sa.column("name",sa.String()),sa.column("is_active",sa.Boolean()),sa.column("sort_order",sa.Integer())),[{"id":"11111111-1111-1111-1111-111111111111","name":"تفعيل خدمة","is_active":True,"sort_order":10},{"id":"22222222-2222-2222-2222-222222222222","name":"تجديد اشتراك","is_active":True,"sort_order":20},{"id":"33333333-3333-3333-3333-333333333333","name":"ترقية خدمة","is_active":True,"sort_order":30},{"id":"44444444-4444-4444-4444-444444444444","name":"استشارة","is_active":True,"sort_order":40}])
-def downgrade():
-    for t in ["admin_actions","notification_attachments","notifications","terms_acceptances","service_credentials","service_requests","services","customers"]: op.drop_table(t)
-    status.drop(op.get_bind(),checkfirst=True)
+
+revision = "0001_initial"
+down_revision = None
+branch_labels = None
+depends_on = None
+
+STATUS_VALUES = ("PENDING", "ACTIVE", "SUSPENDED", "REJECTED", "DISABLED")
+status_type = postgresql.ENUM(*STATUS_VALUES, name="requeststatus", create_type=False)
+
+
+def upgrade() -> None:
+    postgresql.ENUM(*STATUS_VALUES, name="requeststatus").create(op.get_bind(), checkfirst=True)
+    op.create_table("customers",
+        sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True), sa.Column("full_name", sa.String(160), nullable=False),
+        sa.Column("username", sa.String(80), nullable=False, unique=True), sa.Column("phone", sa.String(40), nullable=False),
+        sa.Column("portal_password_hash", sa.Text(), nullable=False), sa.Column("status", status_type, nullable=False, server_default="PENDING"),
+        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()))
+    op.create_table("services",
+        sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True), sa.Column("name", sa.String(140), nullable=False, unique=True),
+        sa.Column("is_active", sa.Boolean(), nullable=False, server_default=sa.true()), sa.Column("sort_order", sa.Integer(), nullable=False, server_default="0"))
+    op.create_table("service_requests",
+        sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True), sa.Column("customer_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("customers.id", ondelete="CASCADE"), nullable=False),
+        sa.Column("service_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("services.id", ondelete="SET NULL"), nullable=True), sa.Column("custom_service_text", sa.Text(), nullable=True),
+        sa.Column("status", status_type, nullable=False, server_default="PENDING"), sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()))
+    op.create_table("service_credentials",
+        sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True), sa.Column("request_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("service_requests.id", ondelete="CASCADE"), nullable=False, unique=True),
+        sa.Column("service_username", sa.String(160), nullable=False), sa.Column("encrypted_password", sa.Text(), nullable=False))
+    op.create_table("terms_acceptances",
+        sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True), sa.Column("customer_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("customers.id", ondelete="CASCADE"), nullable=False),
+        sa.Column("terms_version", sa.String(40), nullable=False), sa.Column("accepted_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()))
+    op.create_table("notifications",
+        sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True), sa.Column("customer_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("customers.id", ondelete="CASCADE"), nullable=False),
+        sa.Column("title", sa.String(180), nullable=False), sa.Column("body", sa.Text(), nullable=False), sa.Column("is_read", sa.Boolean(), nullable=False, server_default=sa.false()),
+        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()))
+    op.create_table("notification_attachments",
+        sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True), sa.Column("notification_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("notifications.id", ondelete="CASCADE"), nullable=False),
+        sa.Column("kind", sa.String(30), nullable=False), sa.Column("file_url", sa.Text(), nullable=False), sa.Column("file_name", sa.String(255), nullable=True))
+    op.create_table("admin_actions",
+        sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True), sa.Column("action", sa.String(80), nullable=False), sa.Column("target_id", sa.String(80), nullable=False),
+        sa.Column("details", sa.Text(), nullable=True), sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()))
+
+    for table, columns in {
+        "customers": ["username", "phone", "status"], "service_requests": ["customer_id", "status"],
+        "notifications": ["customer_id", "is_read"], "notification_attachments": ["notification_id"], "terms_acceptances": ["customer_id"],
+    }.items():
+        for column in columns:
+            op.create_index(f"ix_{table}_{column}", table, [column])
+
+    services = sa.table("services", sa.column("id", postgresql.UUID(as_uuid=True)), sa.column("name", sa.String()), sa.column("is_active", sa.Boolean()), sa.column("sort_order", sa.Integer()))
+    op.bulk_insert(services, [
+        {"id": uuid.UUID("11111111-1111-1111-1111-111111111111"), "name": "تفعيل خدمة", "is_active": True, "sort_order": 10},
+        {"id": uuid.UUID("22222222-2222-2222-2222-222222222222"), "name": "تجديد اشتراك", "is_active": True, "sort_order": 20},
+        {"id": uuid.UUID("33333333-3333-3333-3333-333333333333"), "name": "ترقية خدمة", "is_active": True, "sort_order": 30},
+        {"id": uuid.UUID("44444444-4444-4444-4444-444444444444"), "name": "استشارة", "is_active": True, "sort_order": 40},
+    ])
+
+
+def downgrade() -> None:
+    for table in ["admin_actions", "notification_attachments", "notifications", "terms_acceptances", "service_credentials", "service_requests", "services", "customers"]:
+        op.drop_table(table)
+    postgresql.ENUM(*STATUS_VALUES, name="requeststatus").drop(op.get_bind(), checkfirst=True)
