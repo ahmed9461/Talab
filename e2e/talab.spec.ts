@@ -11,32 +11,22 @@ async function expectNoHorizontalOverflow(page: Page) {
 }
 
 test("registration flow is clear, responsive and handles Other", async ({ page }, testInfo) => {
-  await page.route("**/api/v1/services", async (route) => {
-    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(services) });
-  });
-  await page.route("**/api/v1/auth/register", async (route) => {
-    await route.fulfill({
-      status: 201,
-      contentType: "application/json",
-      body: JSON.stringify({ customer_id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", request_id: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb", status: "PENDING" }),
-    });
-  });
+  await page.route("**/api/v1/services", route => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(services) }));
+  await page.route("**/api/v1/auth/register", route => route.fulfill({ status: 201, contentType: "application/json", body: JSON.stringify({ customer_id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", request_id: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb", status: "PENDING" }) }));
 
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "إنشاء طلب جديد" })).toBeVisible();
   const story = page.getByText("طلبك يبدأ هنا،");
-  if (testInfo.project.name === "desktop") await expect(story).toBeVisible();
-  else await expect(story).toBeHidden();
+  if (testInfo.project.name === "desktop") await expect(story).toBeVisible(); else await expect(story).toBeHidden();
   await expectNoHorizontalOverflow(page);
 
-  await page.getByLabel("الاسم الكامل").fill("أحمد محمد");
-  await page.getByLabel("رقم الجوال").fill("770000000");
-  await page.getByLabel("اسم المستخدم").fill("ahmed.demo");
-  await page.getByLabel("كلمة المرور").fill("safe-demo-password");
-  await page.getByLabel("نوع الخدمة").selectOption("other");
-  await expect(page.getByLabel("صف الخدمة المطلوبة")).toBeVisible();
-  await page.getByLabel("صف الخدمة المطلوبة").fill("أحتاج خدمة مخصصة لاختبار تجربة التسجيل.");
-  await page.getByText("قرأت وأوافق").click();
+  await page.getByLabel("الاسم الكامل", { exact: true }).fill("أحمد محمد");
+  await page.getByLabel("رقم الجوال", { exact: true }).fill("770000000");
+  await page.getByLabel("اسم المستخدم", { exact: true }).fill("ahmed.demo");
+  await page.getByLabel("كلمة المرور", { exact: true }).fill("safe-demo-password");
+  await page.getByLabel("نوع الخدمة", { exact: true }).selectOption("other");
+  await page.getByLabel("صف الخدمة المطلوبة", { exact: true }).fill("أحتاج خدمة مخصصة لاختبار تجربة التسجيل.");
+  await page.getByLabel("قرأت وأوافق على", { exact: true }).check();
   await page.getByRole("button", { name: "إرسال الطلب" }).click();
 
   await expect(page.getByRole("heading", { name: "وصلنا طلبك" })).toBeVisible();

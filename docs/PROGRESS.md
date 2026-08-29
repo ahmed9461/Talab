@@ -4,6 +4,7 @@
 
 ### Customer experience
 - Premium RTL mobile-first registration, login and customer dashboard.
+- Accessible form association uses explicit labels; password visibility controls are no longer nested inside labels.
 - HttpOnly/SameSite session cookie; no browser localStorage token.
 - Status badges use icon + text and accessible focus/touch states.
 - Requests, unread notifications, private attachments, loading/error/empty/success states.
@@ -30,6 +31,7 @@
 
 ### Product quality and operations
 - `design-system/talab/MASTER.md` is the visual source of truth using UI/UX Pro Max priorities.
+- Next.js moved to the patched 15.5 maintenance line and React to a patched 19.1 release after CI detected an outdated vulnerable version.
 - GitHub Actions checks TypeScript, Next.js build, Python compilation/tests and PostgreSQL migrations.
 - Browser smoke suite runs registration/dashboard at desktop and mobile widths and checks horizontal overflow.
 - CI retains temporary screenshots/HTML Playwright report for visual inspection.
