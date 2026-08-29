@@ -1,11 +1,11 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 const services = [
   { id: "11111111-1111-1111-1111-111111111111", name: "تفعيل خدمة" },
   { id: "22222222-2222-2222-2222-222222222222", name: "تجديد اشتراك" },
 ];
 
-async function expectNoHorizontalOverflow(page: Parameters<typeof test>[0] extends never ? never : any) {
+async function expectNoHorizontalOverflow(page: Page) {
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1);
   expect(overflow).toBeFalsy();
 }
@@ -24,7 +24,9 @@ test("registration flow is clear, responsive and handles Other", async ({ page }
 
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "إنشاء طلب جديد" })).toBeVisible();
-  await expect(page.getByText("طلبك يبدأ هنا،")).toBeVisible({ visible: testInfo.project.name === "desktop" });
+  const story = page.getByText("طلبك يبدأ هنا،");
+  if (testInfo.project.name === "desktop") await expect(story).toBeVisible();
+  else await expect(story).toBeHidden();
   await expectNoHorizontalOverflow(page);
 
   await page.getByLabel("الاسم الكامل").fill("أحمد محمد");
