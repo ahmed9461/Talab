@@ -30,16 +30,20 @@ const CONTENT_SECTIONS: ContentSection[] = [
   },
   {
     title: "نموذج الطلب",
-    description: "العناوين والتعليمات والعبارات التي يراها العميل أثناء التسجيل.",
+    description: "العناوين والتعليمات والأمثلة التي تظهر داخل حقول التسجيل.",
     fields: [
       { key: "form_kicker", label: "عبارة الخطوة" },
       { key: "form_title", label: "عنوان النموذج" },
       { key: "form_description", label: "وصف النموذج", multiline: true },
       { key: "full_name_label", label: "حقل الاسم" },
+      { key: "full_name_placeholder", label: "مثال داخل حقل الاسم" },
       { key: "phone_label", label: "حقل الجوال" },
+      { key: "phone_placeholder", label: "مثال داخل حقل الجوال" },
       { key: "username_label", label: "حقل اسم المستخدم" },
+      { key: "username_placeholder", label: "مثال داخل حقل اسم المستخدم" },
       { key: "username_hint", label: "ملاحظة اسم المستخدم" },
       { key: "password_label", label: "حقل كلمة المرور" },
+      { key: "password_placeholder", label: "مثال داخل حقل كلمة المرور" },
       { key: "password_hint", label: "ملاحظة كلمة المرور" },
       { key: "service_type_label", label: "عنوان نوع الخدمة" },
       { key: "service_type_placeholder", label: "اختيار نوع الخدمة" },
@@ -187,7 +191,7 @@ export default function AdminPage() {
 
       {(message || error) && <div className={`admin-alert ${error ? "error" : "success"}`}>{error || message}</div>}
 
-      <div className="admin-tabs-note"><LayoutTemplate size={18}/><div><b>نصوص صفحة التسجيل</b><span>غيّر العناوين والأوصاف ورسالة النجاح من مكان واحد.</span></div></div>
+      <div className="admin-tabs-note"><LayoutTemplate size={18}/><div><b>نصوص صفحة التسجيل</b><span>غيّر العناوين والأوصاف والأمثلة داخل الحقول ورسالة النجاح من مكان واحد.</span></div></div>
       <section className="admin-content-stack">
         {CONTENT_SECTIONS.map((section) => <article className="admin-card" key={section.title}>
           <div className="admin-card-head"><div><h2>{section.title}</h2><p>{section.description}</p></div></div>
