@@ -6,7 +6,6 @@ from fastapi.responses import FileResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import get_settings
 from app.database import get_db
 from app.dependencies import current_customer
 from app.models import Customer, Notification, NotificationAttachment, Service, ServiceRequest
@@ -28,7 +27,6 @@ async def requests(customer: Customer = Depends(current_customer), db: AsyncSess
 
 @router.get("/notifications", response_model=list[NotificationOut])
 async def notifications(customer: Customer = Depends(current_customer), db: AsyncSession = Depends(get_db)) -> list[NotificationOut]:
-    settings = get_settings()
     notes = list((await db.scalars(select(Notification).where(Notification.customer_id == customer.id).order_by(Notification.created_at.desc()))).all())
     if not notes:
         return []
@@ -36,8 +34,9 @@ async def notifications(customer: Customer = Depends(current_customer), db: Asyn
     grouped: dict[UUID, list[AttachmentOut]] = {}
     for item in attachments:
         grouped.setdefault(item.notification_id, []).append(AttachmentOut(
-            id=item.id, kind=item.kind,
-            file_url=f"{settings.public_base_url}/api/v1/customer/attachments/{item.id}",
+            id=item.id,
+            kind=item.kind,
+            file_url=f"/api/v1/customer/attachments/{item.id}",
             file_name=item.file_name,
         ))
     return [NotificationOut(id=note.id, title=note.title, body=note.body, is_read=note.is_read, created_at=note.created_at, attachments=grouped.get(note.id, [])) for note in notes]
@@ -54,6 +53,7 @@ async def download_attachment(attachment_id: UUID, customer: Customer = Depends(
         raise HTTPException(404, "المرفق غير موجود")
     attachment = row[0]
     filename = Path(attachment.file_url).name
+    from app.config import get_settings
     path = Path(get_settings().media_root) / filename
     if not path.is_file():
         raise HTTPException(404, "ملف المرفق غير متوفر")
