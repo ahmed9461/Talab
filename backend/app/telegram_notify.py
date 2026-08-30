@@ -12,9 +12,12 @@ def request_keyboard(request_id: str, customer_id: str) -> dict:
             ],
             [
                 {"text": "⏸ تعليق", "callback_data": f"st:SUSPENDED:{request_id}"},
-                {"text": "🔐 بيانات الدخول", "callback_data": f"cred:{request_id}"},
+                {"text": "🚫 تعطيل", "callback_data": f"st:DISABLED:{request_id}"},
             ],
-            [{"text": "🔔 إرسال إخطار", "callback_data": f"notify:{customer_id}"}],
+            [
+                {"text": "🔐 بيانات الدخول", "callback_data": f"cred:{request_id}"},
+                {"text": "🔔 إرسال إخطار", "callback_data": f"notify:{customer_id}"},
+            ],
         ]
     }
 
