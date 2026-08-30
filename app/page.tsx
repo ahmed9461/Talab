@@ -1,27 +1,78 @@
 "use client";
 
-import { FormEvent, ReactNode, useEffect, useState } from "react";
+import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
 import { ArrowLeft, BadgeCheck, Check, Eye, EyeOff, LockKeyhole, Phone, ShieldCheck, Sparkles, UserRound, Wrench } from "lucide-react";
 import { BrandLogo } from "@/components/brand-logo";
 import { apiFetch } from "@/lib/api";
 
-type Service = { id: string; name: string };
+type Service = { id: string; name: string; service_type?: string };
+
+type SiteContent = Record<string, string>;
+
+const DEFAULT_CONTENT: SiteContent = {
+  page_badge: "بوابة خدمات أبسط",
+  hero_title: "طلبك يبدأ هنا،",
+  hero_highlight: "ومتابعته أسهل.",
+  hero_description: "أرسل بيانات الخدمة مرة واحدة، وتابع حالتها واستقبل كل التحديثات المهمة من حسابك.",
+  point_1_title: "حالة واضحة",
+  point_1_text: "تعرف أين وصل طلبك بدون رسائل متفرقة.",
+  point_2_title: "بيانات محمية",
+  point_2_text: "نستخدم ضوابط أمنية مخصصة لحماية بيانات الدخول.",
+  story_footer: "Talab · بوابة العملاء والخدمات",
+  form_kicker: "الخطوة 1 من 1",
+  form_title: "إنشاء طلب جديد",
+  form_description: "أدخل بياناتك كما تريد استخدامها في الخدمة، ثم اختر نوع الطلب.",
+  full_name_label: "الاسم الكامل",
+  phone_label: "رقم الجوال",
+  username_label: "اسم المستخدم",
+  username_hint: "سيُستخدم أيضًا لمتابعة حسابك",
+  password_label: "كلمة المرور",
+  password_hint: "6 أحرف على الأقل",
+  service_type_label: "نوع الخدمة",
+  service_type_placeholder: "اختر نوع الخدمة",
+  service_label: "الخدمة المطلوبة",
+  service_placeholder: "اختر الخدمة المطلوبة",
+  other_option: "أخرى — اكتب طلبك",
+  other_service_label: "صف الخدمة المطلوبة",
+  other_service_placeholder: "اكتب وصفًا مختصرًا يساعدنا على فهم المطلوب...",
+  submit_button: "إرسال الطلب",
+  login_prompt: "لديك حساب بالفعل؟",
+  login_link: "تسجيل الدخول",
+  success_kicker: "تم بنجاح",
+  success_title: "وصلنا طلبك",
+  success_body: "تم إنشاء حسابك وحفظ طلبك بحالة قيد المراجعة. سجل دخولك في أي وقت لمتابعة الحالة والإشعارات.",
+  success_button: "الانتقال لتسجيل الدخول",
+  success_note: "لن تحتاج لإرسال بيانات طلبك مرة أخرى عبر المحادثات.",
+  terms_prefix: "قرأت وأوافق على",
+  terms_link: "شروط الخدمة وسياسة الاستخدام",
+};
 
 export default function RegisterPage() {
   const [services, setServices] = useState<Service[]>([]);
+  const [serviceType, setServiceType] = useState("");
   const [service, setService] = useState("");
+  const [content, setContent] = useState<SiteContent>(DEFAULT_CONTENT);
   const [showPassword, setShowPassword] = useState(false);
   const [done, setDone] = useState(false);
   const [loading, setLoading] = useState(false);
   const [servicesLoading, setServicesLoading] = useState(true);
   const [error, setError] = useState("");
-  const other = service === "other";
+  const other = serviceType === "other";
+
+  const serviceTypes = useMemo(
+    () => Array.from(new Set(services.map((item) => item.service_type?.trim() || "عام"))),
+    [services],
+  );
+  const filteredServices = services.filter((item) => (item.service_type?.trim() || "عام") === serviceType);
 
   useEffect(() => {
     apiFetch<Service[]>("/services")
       .then(setServices)
       .catch((err) => setError(err.message))
       .finally(() => setServicesLoading(false));
+    apiFetch<SiteContent>("/content")
+      .then((values) => setContent((current) => ({ ...current, ...values })))
+      .catch(() => undefined);
   }, []);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -48,37 +99,38 @@ export default function RegisterPage() {
       <div className="story-glow story-glow-one"/><div className="story-glow story-glow-two"/>
       <BrandLogo />
       <div className="story-copy">
-        <span className="overline"><Sparkles size={16}/> بوابة خدمات أبسط</span>
-        <h1>طلبك يبدأ هنا،<br/><em>ومتابعته أسهل.</em></h1>
-        <p>أرسل بيانات الخدمة مرة واحدة، وتابع حالتها واستقبل كل التحديثات المهمة من حسابك.</p>
+        <span className="overline"><Sparkles size={16}/> {content.page_badge}</span>
+        <h1>{content.hero_title}<br/><em>{content.hero_highlight}</em></h1>
+        <p>{content.hero_description}</p>
         <div className="story-points">
-          <StoryPoint icon={<BadgeCheck/>} title="حالة واضحة" text="تعرف أين وصل طلبك بدون رسائل متفرقة."/>
-          <StoryPoint icon={<ShieldCheck/>} title="بيانات محمية" text="نستخدم ضوابط أمنية مخصصة لحماية بيانات الدخول."/>
+          <StoryPoint icon={<BadgeCheck/>} title={content.point_1_title} text={content.point_1_text}/>
+          <StoryPoint icon={<ShieldCheck/>} title={content.point_2_title} text={content.point_2_text}/>
         </div>
       </div>
-      <p className="story-foot">Talab · بوابة العملاء والخدمات</p>
+      <p className="story-foot">{content.story_footer}</p>
     </aside>
 
     <section className="auth-workspace">
-      <header className="mobile-top"><BrandLogo /><a className="text-link" href="/login">تسجيل الدخول</a></header>
+      <header className="mobile-top"><BrandLogo /><a className="text-link" href="/login">{content.login_link}</a></header>
       <div className="form-card">
         {!done ? <>
-          <div className="form-intro"><span className="step-kicker">الخطوة 1 من 1</span><h2>إنشاء طلب جديد</h2><p>أدخل بياناتك كما تريد استخدامها في الخدمة، ثم اختر نوع الطلب.</p></div>
+          <div className="form-intro"><span className="step-kicker">{content.form_kicker}</span><h2>{content.form_title}</h2><p>{content.form_description}</p></div>
           <form className="professional-form" onSubmit={submit} noValidate>
             <div className="field-grid two">
-              <Field id="fullName" label="الاسم الكامل" icon={<UserRound/>}><input id="fullName" name="fullName" autoComplete="name" placeholder="مثال: أحمد محمد" minLength={2} required /></Field>
-              <Field id="phone" label="رقم الجوال" icon={<Phone/>}><input id="phone" name="phone" type="tel" inputMode="tel" autoComplete="tel" placeholder="مثال: 77xxxxxxx" minLength={7} required /></Field>
+              <Field id="fullName" label={content.full_name_label} icon={<UserRound/>}><input id="fullName" name="fullName" autoComplete="name" placeholder="مثال: أحمد محمد" minLength={2} required /></Field>
+              <Field id="phone" label={content.phone_label} icon={<Phone/>}><input id="phone" name="phone" type="tel" inputMode="tel" autoComplete="tel" placeholder="مثال: 77xxxxxxx" minLength={7} required /></Field>
             </div>
-            <Field id="username" label="اسم المستخدم" hint="سيُستخدم أيضًا لمتابعة حسابك" icon={<UserRound/>}><input id="username" name="username" dir="ltr" autoComplete="username" placeholder="your.username" pattern="[A-Za-z0-9_.-]+" minLength={3} required /></Field>
-            <Field id="password" label="كلمة المرور" hint="6 أحرف على الأقل" icon={<LockKeyhole/>}><div className="password-control"><input id="password" name="password" dir="ltr" type={showPassword ? "text" : "password"} autoComplete="new-password" minLength={6} placeholder="••••••••" required/><button className="field-action" type="button" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"}>{showPassword ? <EyeOff/> : <Eye/>}</button></div></Field>
-            <Field id="service" label="نوع الخدمة" icon={<Wrench/>}><select id="service" name="service" value={service} onChange={(e) => setService(e.target.value)} disabled={servicesLoading} required><option value="" disabled>{servicesLoading ? "جارٍ تحميل الخدمات..." : "اختر الخدمة المطلوبة"}</option>{services.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}<option value="other">أخرى — اكتب طلبك</option></select></Field>
-            {other && <div className="reveal-field"><label htmlFor="otherService">صف الخدمة المطلوبة</label><textarea id="otherService" name="otherService" rows={4} maxLength={1500} placeholder="اكتب وصفًا مختصرًا يساعدنا على فهم المطلوب..." required/></div>}
-            <div className="consent-row"><input id="terms" type="checkbox" name="terms" required/><label className="consent-check" htmlFor="terms"><span className="check-ui"><Check size={15}/></span><span>قرأت وأوافق على</span></label><a href="/terms" target="_blank" rel="noreferrer">شروط الخدمة وسياسة الاستخدام</a><span>.</span></div>
+            <Field id="username" label={content.username_label} hint={content.username_hint} icon={<UserRound/>}><input id="username" name="username" dir="ltr" autoComplete="username" placeholder="your.username" pattern="[A-Za-z0-9_.-]+" minLength={3} required /></Field>
+            <Field id="password" label={content.password_label} hint={content.password_hint} icon={<LockKeyhole/>}><div className="password-control"><input id="password" name="password" dir="ltr" type={showPassword ? "text" : "password"} autoComplete="new-password" minLength={6} placeholder="••••••••" required/><button className="field-action" type="button" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"}>{showPassword ? <EyeOff/> : <Eye/>}</button></div></Field>
+            <Field id="serviceType" label={content.service_type_label} icon={<Wrench/>}><select id="serviceType" name="serviceType" value={serviceType} onChange={(event) => { const value = event.target.value; setServiceType(value); setService(value === "other" ? "other" : ""); }} disabled={servicesLoading} required><option value="" disabled>{servicesLoading ? "جارٍ تحميل الخدمات..." : content.service_type_placeholder}</option>{serviceTypes.map((type) => <option key={type} value={type}>{type}</option>)}<option value="other">{content.other_option}</option></select></Field>
+            {!other && serviceType && <Field id="service" label={content.service_label} icon={<Wrench/>}><select id="service" name="service" value={service} onChange={(event) => setService(event.target.value)} required><option value="" disabled>{content.service_placeholder}</option>{filteredServices.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></Field>}
+            {other && <div className="reveal-field"><label htmlFor="otherService">{content.other_service_label}</label><textarea id="otherService" name="otherService" rows={4} maxLength={1500} placeholder={content.other_service_placeholder} required/></div>}
+            <div className="consent-row"><input id="terms" type="checkbox" name="terms" required/><label className="consent-check" htmlFor="terms"><span className="check-ui"><Check size={15}/></span><span>{content.terms_prefix}</span></label><a href="/terms" target="_blank" rel="noreferrer">{content.terms_link}</a><span>.</span></div>
             {error && <div className="form-alert" role="alert">{error}</div>}
-            <button className="primary-cta" type="submit" disabled={loading || servicesLoading}><span>{loading ? "جارٍ إرسال طلبك..." : "إرسال الطلب"}</span><ArrowLeft size={19}/></button>
-            <p className="form-switch">لديك حساب بالفعل؟ <a href="/login">تسجيل الدخول</a></p>
+            <button className="primary-cta" type="submit" disabled={loading || servicesLoading}><span>{loading ? "جارٍ إرسال طلبك..." : content.submit_button}</span><ArrowLeft size={19}/></button>
+            <p className="form-switch">{content.login_prompt} <a href="/login">{content.login_link}</a></p>
           </form>
-        </> : <div className="success-screen" role="status"><div className="success-mark"><Check size={34}/></div><span className="step-kicker">تم بنجاح</span><h2>وصلنا طلبك</h2><p>تم إنشاء حسابك وحفظ طلبك بحالة <strong>قيد المراجعة</strong>. سجل دخولك في أي وقت لمتابعة الحالة والإشعارات.</p><a className="primary-cta link-button" href="/login">الانتقال لتسجيل الدخول <ArrowLeft size={19}/></a><div className="success-note"><ShieldCheck size={18}/><span>لن تحتاج لإرسال بيانات طلبك مرة أخرى عبر المحادثات.</span></div></div>}
+        </> : <div className="success-screen" role="status"><div className="success-mark"><Check size={34}/></div><span className="step-kicker">{content.success_kicker}</span><h2>{content.success_title}</h2><p>{content.success_body}</p><a className="primary-cta link-button" href="/login">{content.success_button} <ArrowLeft size={19}/></a><div className="success-note"><ShieldCheck size={18}/><span>{content.success_note}</span></div></div>}
       </div>
       <footer className="auth-footer"><span>© طلب</span><a href="/terms">الشروط والخصوصية</a></footer>
     </section>

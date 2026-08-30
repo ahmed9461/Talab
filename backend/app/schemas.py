@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field, model_validator
 class ServiceOut(BaseModel):
     id: UUID
     name: str
+    service_type: str
     model_config = {"from_attributes": True}
 
 
@@ -18,13 +19,19 @@ class AdminServiceOut(ServiceOut):
 
 class ServiceCreate(BaseModel):
     name: str = Field(min_length=2, max_length=140)
+    service_type: str = Field(default="عام", min_length=1, max_length=100)
     sort_order: int = 0
 
 
 class ServiceUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=2, max_length=140)
+    service_type: str | None = Field(default=None, min_length=1, max_length=100)
     is_active: bool | None = None
     sort_order: int | None = None
+
+
+class SiteContentUpdate(BaseModel):
+    values: dict[str, str]
 
 
 class RegisterRequest(BaseModel):

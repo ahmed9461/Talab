@@ -33,6 +33,7 @@ class Service(Base):
     __tablename__ = "services"
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name: Mapped[str] = mapped_column(String(140), unique=True)
+    service_type: Mapped[str] = mapped_column(String(100), default="عام", server_default="عام")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     sort_order: Mapped[int] = mapped_column(default=0)
 
@@ -82,6 +83,13 @@ class NotificationAttachment(Base):
     kind: Mapped[str] = mapped_column(String(30))
     file_url: Mapped[str] = mapped_column(Text)
     file_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
+
+class SiteSetting(Base):
+    __tablename__ = "site_settings"
+    key: Mapped[str] = mapped_column(String(80), primary_key=True)
+    value: Mapped[str] = mapped_column(Text)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 
 class AdminAction(Base):

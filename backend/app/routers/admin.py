@@ -6,9 +6,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.dependencies import require_admin
-from app.models import AdminAction, Customer, Notification, NotificationAttachment, RequestStatus, Service, ServiceCredential, ServiceRequest
-from app.schemas import AdminRequestOut, AdminServiceOut, CredentialOut, NotificationCreate, ServiceCreate, ServiceUpdate, StatusUpdate
+from app.models import AdminAction, Customer, Notification, NotificationAttachment, RequestStatus, Service, ServiceCredential, ServiceRequest, SiteSetting
+from app.schemas import AdminRequestOut, AdminServiceOut, CredentialOut, NotificationCreate, ServiceCreate, ServiceUpdate, SiteContentUpdate, StatusUpdate
 from app.security import decrypt_service_password
+from app.site_content import DEFAULT_SITE_CONTENT, EDITABLE_SITE_CONTENT_KEYS, MAX_SITE_CONTENT_VALUE_LENGTH
 from app.uploads import save_upload
 
 router = APIRouter(dependencies=[Depends(require_admin)])
@@ -70,20 +71,54 @@ async def notify(customer_id: UUID, payload: NotificationCreate, db: AsyncSessio
     return {"ok": True, "notification_id": item.id}
 
 
+@router.get("/content", response_model=dict[str, str])
+async def admin_content(db: AsyncSession = Depends(get_db)) -> dict[str, str]:
+    values = DEFAULT_SITE_CONTENT.copy()
+    rows = (await db.scalars(select(SiteSetting))).all()
+    values.update({row.key: row.value for row in rows if row.key in EDITABLE_SITE_CONTENT_KEYS})
+    return values
+
+
+@router.patch("/content", response_model=dict[str, str])
+async def update_content(payload: SiteContentUpdate, db: AsyncSession = Depends(get_db)) -> dict[str, str]:
+    unknown = set(payload.values) - EDITABLE_SITE_CONTENT_KEYS
+    if unknown:
+        raise HTTPException(400, f"حقول غير معروفة: {', '.join(sorted(unknown))}")
+    if not payload.values:
+        raise HTTPException(400, "لا توجد تغييرات للحفظ")
+
+    for key, raw_value in payload.values.items():
+        value = raw_value.strip()
+        if not value:
+            raise HTTPException(400, f"القيمة لا يمكن أن تكون فارغة: {key}")
+        if len(value) > MAX_SITE_CONTENT_VALUE_LENGTH:
+            raise HTTPException(400, f"النص طويل جدًا: {key}")
+        row = await db.get(SiteSetting, key)
+        if row:
+            row.value = value
+        else:
+            db.add(SiteSetting(key=key, value=value))
+
+    db.add(AdminAction(action="site_content_updated", target_id="site", details=", ".join(sorted(payload.values))))
+    await db.commit()
+    return await admin_content(db)
+
+
 @router.get("/services", response_model=list[AdminServiceOut])
 async def admin_services(db: AsyncSession = Depends(get_db)) -> list[Service]:
-    return list((await db.scalars(select(Service).order_by(Service.sort_order, Service.name))).all())
+    return list((await db.scalars(select(Service).order_by(Service.service_type, Service.sort_order, Service.name))).all())
 
 
 @router.post("/services", response_model=AdminServiceOut, status_code=status.HTTP_201_CREATED)
 async def create_service(payload: ServiceCreate, db: AsyncSession = Depends(get_db)) -> Service:
     name = payload.name.strip()
+    service_type = payload.service_type.strip() or "عام"
     if await db.scalar(select(Service).where(Service.name == name)):
         raise HTTPException(409, "الخدمة موجودة بالفعل")
-    item = Service(name=name, sort_order=payload.sort_order, is_active=True)
+    item = Service(name=name, service_type=service_type, sort_order=payload.sort_order, is_active=True)
     db.add(item)
     await db.flush()
-    db.add(AdminAction(action="service_created", target_id=str(item.id), details=name))
+    db.add(AdminAction(action="service_created", target_id=str(item.id), details=f"{service_type} / {name}"))
     await db.commit()
     await db.refresh(item)
     return item
@@ -95,12 +130,18 @@ async def update_service(service_id: UUID, payload: ServiceUpdate, db: AsyncSess
     if not item:
         raise HTTPException(404, "الخدمة غير موجودة")
     if payload.name is not None:
-        item.name = payload.name.strip()
+        name = payload.name.strip()
+        duplicate = await db.scalar(select(Service).where(Service.name == name, Service.id != service_id))
+        if duplicate:
+            raise HTTPException(409, "اسم الخدمة مستخدم بالفعل")
+        item.name = name
+    if payload.service_type is not None:
+        item.service_type = payload.service_type.strip() or "عام"
     if payload.is_active is not None:
         item.is_active = payload.is_active
     if payload.sort_order is not None:
         item.sort_order = payload.sort_order
-    db.add(AdminAction(action="service_updated", target_id=str(service_id), details=item.name))
+    db.add(AdminAction(action="service_updated", target_id=str(service_id), details=f"{item.service_type} / {item.name}"))
     await db.commit()
     await db.refresh(item)
     return item
