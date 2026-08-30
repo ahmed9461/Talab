@@ -23,10 +23,14 @@ const DEFAULT_CONTENT: SiteContent = {
   form_title: "إنشاء طلب جديد",
   form_description: "أدخل بياناتك كما تريد استخدامها في الخدمة، ثم اختر نوع الطلب.",
   full_name_label: "الاسم الكامل",
+  full_name_placeholder: "مثال: أحمد محمد",
   phone_label: "رقم الجوال",
+  phone_placeholder: "مثال: 77xxxxxxx",
   username_label: "اسم المستخدم",
+  username_placeholder: "your.username",
   username_hint: "سيُستخدم أيضًا لمتابعة حسابك",
   password_label: "كلمة المرور",
+  password_placeholder: "••••••••",
   password_hint: "6 أحرف على الأقل",
   service_type_label: "نوع الخدمة",
   service_type_placeholder: "اختر نوع الخدمة",
@@ -117,11 +121,11 @@ export default function RegisterPage() {
           <div className="form-intro"><span className="step-kicker">{content.form_kicker}</span><h2>{content.form_title}</h2><p>{content.form_description}</p></div>
           <form className="professional-form" onSubmit={submit} noValidate>
             <div className="field-grid two">
-              <Field id="fullName" label={content.full_name_label} icon={<UserRound/>}><input id="fullName" name="fullName" autoComplete="name" placeholder="مثال: أحمد محمد" minLength={2} required /></Field>
-              <Field id="phone" label={content.phone_label} icon={<Phone/>}><input id="phone" name="phone" type="tel" inputMode="tel" autoComplete="tel" placeholder="مثال: 77xxxxxxx" minLength={7} required /></Field>
+              <Field id="fullName" label={content.full_name_label} icon={<UserRound/>}><input id="fullName" name="fullName" autoComplete="name" placeholder={content.full_name_placeholder} minLength={2} required /></Field>
+              <Field id="phone" label={content.phone_label} icon={<Phone/>}><input id="phone" name="phone" type="tel" inputMode="tel" autoComplete="tel" placeholder={content.phone_placeholder} minLength={7} required /></Field>
             </div>
-            <Field id="username" label={content.username_label} hint={content.username_hint} icon={<UserRound/>}><input id="username" name="username" dir="ltr" autoComplete="username" placeholder="your.username" pattern="[A-Za-z0-9_.-]+" minLength={3} required /></Field>
-            <Field id="password" label={content.password_label} hint={content.password_hint} icon={<LockKeyhole/>}><div className="password-control"><input id="password" name="password" dir="ltr" type={showPassword ? "text" : "password"} autoComplete="new-password" minLength={6} placeholder="••••••••" required/><button className="field-action" type="button" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"}>{showPassword ? <EyeOff/> : <Eye/>}</button></div></Field>
+            <Field id="username" label={content.username_label} hint={content.username_hint} icon={<UserRound/>}><input id="username" name="username" dir="ltr" autoComplete="username" placeholder={content.username_placeholder} pattern="[A-Za-z0-9_.-]+" minLength={3} required /></Field>
+            <Field id="password" label={content.password_label} hint={content.password_hint} icon={<LockKeyhole/>}><div className="password-control"><input id="password" name="password" dir="ltr" type={showPassword ? "text" : "password"} autoComplete="new-password" minLength={6} placeholder={content.password_placeholder} required/><button className="field-action" type="button" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"}>{showPassword ? <EyeOff/> : <Eye/>}</button></div></Field>
             <Field id="serviceType" label={content.service_type_label} icon={<Wrench/>}><select id="serviceType" name="serviceType" value={serviceType} onChange={(event) => { const value = event.target.value; setServiceType(value); setService(value === "other" ? "other" : ""); }} disabled={servicesLoading} required><option value="" disabled>{servicesLoading ? "جارٍ تحميل الخدمات..." : content.service_type_placeholder}</option>{serviceTypes.map((type) => <option key={type} value={type}>{type}</option>)}<option value="other">{content.other_option}</option></select></Field>
             {!other && serviceType && <Field id="service" label={content.service_label} icon={<Wrench/>}><select id="service" name="service" value={service} onChange={(event) => setService(event.target.value)} required><option value="" disabled>{content.service_placeholder}</option>{filteredServices.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></Field>}
             {other && <div className="reveal-field"><label htmlFor="otherService">{content.other_service_label}</label><textarea id="otherService" name="otherService" rows={4} maxLength={1500} placeholder={content.other_service_placeholder} required/></div>}
